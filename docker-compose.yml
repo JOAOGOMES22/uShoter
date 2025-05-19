@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: ushort_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    ports:
+      - "5433:5432" # Mapeia porta 5433 do host para 5432 do container (evitar conflito se já tiver PG local)
+    networks:
+      - ushort_net
+    healthcheck:
+        test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+        interval: 5s
+        timeout: 5s
+        retries: 5
+
+  shortening_service:
+    build: ./shortening_service
+    container_name: ushort_shortener
+    #command: uvicorn app.main:app --host 0.0.0.0 --port 8080 # --reload é bom para dev
+    volumes:
+      - ./shortening_service/app:/code/app # Monta o código local para hot-reloading
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy # Espera o DB estar pronto
+    networks:
+      - ushort_net
+    expose: # Não precisa expor porta para o host, só para a rede interna
+      - "8000"
+
+  redirection_service:
+    build: ./redirection_service
+    container_name: ushort_redirector
+    #command: uvicorn app.main:app --host 0.0.0.0 --port 8080
+    volumes:
+      - ./redirection_service/app:/code/app
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ushort_net
+    expose:
+      - "8000"
+
+  api_gateway:
+    build: ./api_gateway
+    container_name: ushort_gateway
+    #command: uvicorn app.main:app --host 0.0.0.0 --port 8080
+    volumes:
+      - ./api_gateway/app:/code/app
+    ports:
+      - "8000:8000" # Expõe a porta do gateway para acesso externo
+    env_file:
+      - .env
+    depends_on: # Depende dos outros serviços, mas não espera healthcheck (ele mesmo faz o retry)
+      - shortening_service
+      - redirection_service
+    networks:
+      - ushort_net
+
+volumes:
+  postgres_data:
+
+networks:
+  ushort_net:
+    driver: bridge

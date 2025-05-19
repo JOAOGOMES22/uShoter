@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>µShort - Encurtador de URL</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+            line-height: 1.6;
+            padding: 30px;
+            max-width: 600px;
+            margin: 40px auto;
+            background-color: #f4f7f6;
+            color: #333;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        h1 {
+            text-align: center;
+            color: #005f73;
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        input[type="url"] {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+         input[type="url"]:focus {
+             border-color: #0077cc;
+             outline: none;
+             box-shadow: 0 0 0 2px rgba(0, 119, 204, 0.2);
+         }
+
+        button[type="submit"] {
+            display: block;
+            width: 100%;
+            padding: 12px 15px;
+            cursor: pointer;
+            background-color: #0077cc;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            transition: background-color 0.2s ease;
+        }
+
+        button[type="submit"]:hover {
+            background-color: #005fa3;
+        }
+
+        #result {
+            margin-top: 25px;
+            padding: 15px;
+            border: 1px solid #d6e9c6;
+            background-color: #f5fff0;
+            border-radius: 4px;
+            word-wrap: break-word;
+            text-align: center;
+        }
+
+        #result.error {
+            border-color: #ebccd1;
+            background-color: #f2dede;
+            color: #a94442;
+        }
+
+        #result.success {
+             border-color: #bce8f1;
+             background-color: #d9edf7;
+             color: #31708f;
+        }
+
+        #result.success a {
+            color: #005f73;
+            font-weight: bold;
+            text-decoration: none;
+            word-break: break-all;
+        }
+        #result.success a:hover {
+            text-decoration: underline;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+            font-size: 0.9em;
+            color: #777;
+        }
+    </style>
+</head>
+<body>
+    <h1>µShort - Encurtador de URL</h1>
+
+    <form id="shorten-form">
+        <label for="long_url">URL Longa:</label><br>
+        <input type="url" id="long_url" name="long_url" placeholder="https://exemplo.com/pagina/muito/longa" required>
+        <br>
+        <button type="submit">Encurtar!</button>
+    </form>
+
+    <div id="result" style="display: none;"></div>
+
+    <footer>
+        <p>© Joao Gomes 2025 - Todos os direitos reservados.</p>
+    </footer>
+
+    <script>
+        const form = document.getElementById('shorten-form');
+        const longUrlInput = document.getElementById('long_url');
+        const resultDiv = document.getElementById('result');
+        // Atualizado: URL pública do API Gateway no Cloud Run
+        const apiUrl = 'https://ushort-gateway-oxhybdutrq-rj.a.run.app/api/shorten';
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            resultDiv.style.display = 'none';
+            resultDiv.className = '';
+            resultDiv.textContent = '';
+
+            const longUrl = longUrlInput.value;
+
+            if (!longUrl) {
+                showError('Por favor, insira uma URL.');
+                return;
+            }
+
+            try {
+                new URL(longUrl);
+            } catch (_) {
+                showError('URL inválida.');
+                return;
+            }
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ long_url: longUrl })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    const errorMessage = data.detail || `Erro ${response.status}: ${response.statusText}`;
+                    throw new Error(errorMessage);
+                }
+
+                if (data.short_url) {
+                    showSuccess(data.short_url);
+                } else {
+                     throw new Error('Resposta da API inválida.');
+                }
+
+            } catch (error) {
+                console.error('Erro ao encurtar URL:', error);
+                showError(`Erro: ${error.message}`);
+            }
+        });
+
+        function showResult(message, type) {
+            resultDiv.textContent = '';
+            resultDiv.className = type;
+            if (type === 'success') {
+                const link = document.createElement('a');
+                link.href = message;
+                link.textContent = message;
+                link.target = '_blank';
+                resultDiv.appendChild(document.createTextNode('URL Curta: '));
+                resultDiv.appendChild(link);
+            } else {
+                 resultDiv.textContent = message;
+            }
+            resultDiv.style.display = 'block';
+        }
+
+        function showError(message) {
+            showResult(message, 'error');
+        }
+
+        function showSuccess(shortUrl) {
+             showResult(shortUrl, 'success');
+        }
+    </script>
+</body>
+</html>

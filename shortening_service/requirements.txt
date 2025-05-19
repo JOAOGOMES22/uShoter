@@ -1,0 +1,9 @@
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+sqlalchemy[asyncio]==2.0.29 # Inclui suporte asyncio
+asyncpg==0.29.0           # Driver async para PostgreSQL
+pydantic[email]==2.7.1     # Para HttpUrl e validação
+python-dotenv==1.0.1
+passlib[bcrypt]==1.7.4 # Se for adicionar auth no futuro, bom ter
+psycopg2-binary==2.9.9   # Embora usemos asyncpg, SQLAlchemy pode precisar disso às vezes
+alembic==1.13.1        # Para migrações de DB (bom ter, mas não usado neste MVP)
